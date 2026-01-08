@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useProfile } from "@/hooks/useAuth";
 import { logout } from "@/lib/auth";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, LogOut, Newspaper, Receipt, Users, Wallet } from "lucide-react";
+import { LayoutDashboard, LogOut, Receipt, Users, Wallet } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ThemeSwitcher } from "./ThemeSwitcher";
@@ -13,7 +13,7 @@ const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Expenses", href: "/expenses", icon: Receipt },
   { label: "Incomes", href: "/incomes", icon: Wallet },
-  { label: "E-Paper", href: "/epaper", icon: Newspaper },
+  // { label: "E-Paper", href: "/epaper", icon: Newspaper },
   { label: "Users", href: "/users", icon: Users, adminOnly: true },
 ];
 
