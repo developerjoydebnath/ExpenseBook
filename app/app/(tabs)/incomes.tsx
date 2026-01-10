@@ -23,10 +23,12 @@ export default function IncomesScreen() {
   const [editVisible, setEditVisible] = useState(false);
   const [editingIncome, setEditingIncome] = useState<any>(null);
 
-  // Date Filter State
+  // Date Filter & Pagination State
   const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [cursorStack, setCursorStack] = useState<(string | null)[]>([null]);
+  const currentCursor = cursorStack[cursorStack.length - 1];
 
   React.useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -34,16 +36,41 @@ export default function IncomesScreen() {
     });
   }, []);
 
-  const [{ data, fetching }, reexecute] = useQuery({
-    query: GET_INCOMES,
-    variables: {
-      filter: userId ? { 
-        userId: { eq: userId },
-      } : {},
+  // Re-calculate filter variables properly
+  const queryVariables = {
+    filter: { 
+      userId: { eq: userId },
     },
+    orderBy: [{ date: "DescNullsLast" }],
+    first: 10,
+    after: currentCursor || undefined,
+  };
+
+  if (filterDate) {
+    const startOfMonth = new Date(filterDate.getFullYear(), filterDate.getMonth(), 1);
+    const endOfMonth = new Date(filterDate.getFullYear(), filterDate.getMonth() + 1, 0);
+    // @ts-ignore
+    queryVariables.filter.date = {
+      gte: `${format(startOfMonth, 'yyyy-MM-dd')}T00:00:00`,
+      lte: `${format(endOfMonth, 'yyyy-MM-dd')}T23:59:59.999`
+    };
+  }
+
+  // Use the constructed variables in a separate useQuery call?
+  // No, useQuery hook takes variables directly. 
+  // Refactor: Pass constructed variables to useQuery.
+
+  const [{ data: qData, fetching: qFetching }, qReexecute] = useQuery({
+    query: GET_INCOMES,
+    variables: queryVariables,
     requestPolicy: 'cache-and-network',
     pause: !userId,
   });
+
+  // Use qData and qFetching
+  const incomesData = qData?.incomeCollection?.edges?.map((e: any) => e.node) || [];
+  const pageInfo = qData?.incomeCollection?.pageInfo || { hasNextPage: false, hasPreviousPage: false, startCursor: null, endCursor: null };
+
 
   // Reset states on navigation focus
   useFocusEffect(
@@ -51,6 +78,7 @@ export default function IncomesScreen() {
       return () => {
         setSearchQuery('');
         setFilterDate(undefined);
+        setCursorStack([null]);
       };
     }, [])
   );
@@ -60,9 +88,10 @@ export default function IncomesScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await reexecute({ requestPolicy: 'network-only' });
+    setCursorStack([null]);
+    await qReexecute({ requestPolicy: 'network-only' });
     setRefreshing(false);
-  }, [reexecute]);
+  }, [qReexecute]);
 
   const handleEdit = (income: any) => {
     setEditingIncome(income);
@@ -83,7 +112,7 @@ export default function IncomesScreen() {
       const result = await deleteIncome({ id });
       if (result.error) throw result.error;
       showToast('Income record deleted', 'success');
-      reexecute({ requestPolicy: 'network-only' });
+      qReexecute({ requestPolicy: 'network-only' });
     } catch (error: any) {
       showToast(error.message, 'error');
     }
@@ -102,7 +131,7 @@ export default function IncomesScreen() {
       if (result.error) throw result.error;
 
       setEditVisible(false);
-      reexecute({ requestPolicy: 'network-only' });
+      qReexecute({ requestPolicy: 'network-only' });
       showToast('Income updated', 'success');
     } catch (error: any) {
       showToast(error.message, 'error');
@@ -116,9 +145,10 @@ export default function IncomesScreen() {
 
   const resetFilter = () => {
     setFilterDate(undefined);
+    setCursorStack([null]);
   };
 
-  if (!userId || fetching) {
+  if (!userId || qFetching) {
     return (
       <View style={[styles.centered, { backgroundColor: theme.colors.background }]}>
         <ActivityIndicator size="large" />
@@ -126,18 +156,17 @@ export default function IncomesScreen() {
     );
   }
 
-  const allIncomes = data?.incomeCollection?.edges?.map((e: any) => e.node) || [];
-  const incomes = allIncomes.filter((item: any) => {
-    // Search Filter
-    const matchesSearch = !searchQuery || 
-      (item.source || '').toLowerCase().includes(searchQuery.toLowerCase());
+  const handleNextPage = () => {
+    if (pageInfo.hasNextPage && pageInfo.endCursor) {
+      setCursorStack(prev => [...prev, pageInfo.endCursor]);
+    }
+  };
 
-    // Month-Year Filter
-    const matchesDate = !filterDate || 
-      (item.date && item.date.startsWith(format(filterDate, 'yyyy-MM')));
-
-    return matchesSearch && matchesDate;
-  });
+  const handlePrevPage = () => {
+    if (cursorStack.length > 1) {
+      setCursorStack(prev => prev.slice(0, -1));
+    }
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -166,16 +195,21 @@ export default function IncomesScreen() {
         )}
 
         <IncomeTable
-          incomes={incomes}
+          incomes={incomesData}
           onEdit={handleEdit}
           onDelete={handleDelete}
           onDateFilter={handleDateFilter}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
+          onNextPage={handleNextPage}
+          onPrevPage={handlePrevPage}
+          hasNextPage={pageInfo.hasNextPage}
+          hasPrevPage={cursorStack.length > 1}
+          pageNumber={cursorStack.length}
         />
 
         {/* Month Wise Income Table at the end of incomes tab */}
-        <MonthlyIncomeTable incomes={allIncomes} />
+        <MonthlyIncomeTable />
       </ScrollView>
 
       <Portal>
@@ -186,6 +220,7 @@ export default function IncomesScreen() {
             onSelect={(date: Date) => {
               setFilterDate(date);
               setPickerOpen(false);
+              setCursorStack([null]);
             }}
             onDismiss={() => setPickerOpen(false)}
           />

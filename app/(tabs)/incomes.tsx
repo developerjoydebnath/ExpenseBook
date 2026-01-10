@@ -8,9 +8,9 @@ import React, { useCallback, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Button, Modal, Portal, Text, useTheme } from 'react-native-paper';
 import { useMutation, useQuery } from 'urql';
-import ConfirmDialog from '../../components/shared/ConfirmDialog';
-import MonthYearPicker from '../../components/shared/MonthYearPicker';
-import { useToast } from '../../components/shared/ToastProvider';
+import ConfirmDialog from '../components/shared/ConfirmDialog';
+import MonthYearPicker from '../components/shared/MonthYearPicker';
+import { useToast } from '../components/shared/ToastProvider';
 
 export default function IncomesScreen() {
   const theme = useTheme();
@@ -39,6 +39,8 @@ export default function IncomesScreen() {
       filter: userId ? { 
         userId: { eq: userId },
       } : {},
+      orderBy: [{ date: 'DescNullsLast' }],
+      first: 1000,
     },
     requestPolicy: 'cache-and-network',
     pause: !userId,
@@ -133,7 +135,7 @@ export default function IncomesScreen() {
 
     // Month-Year Filter
     const matchesDate = !filterDate || 
-      (item.date && item.date.startsWith(format(filterDate, 'yyyy-MM')));
+      (item.date && format(new Date(item.date), 'yyyy-MM') === format(filterDate, 'yyyy-MM'));
 
     return matchesSearch && matchesDate;
   });

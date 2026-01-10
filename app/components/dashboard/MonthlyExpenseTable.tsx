@@ -1,7 +1,10 @@
+import { GET_EXPENSES } from '@/services/queries';
+import { supabase } from '@/services/supabase';
 import { format } from 'date-fns';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Button, DataTable, Text, useTheme } from 'react-native-paper';
+import { useQuery } from 'urql';
 import MonthYearPicker from '../shared/MonthYearPicker';
 
 interface ExpenseItem {
@@ -12,7 +15,6 @@ interface ExpenseItem {
 }
 
 interface MonthlyExpenseTableProps {
-  expenses: ExpenseItem[];
   limitMonths?: number; // If set, only show last N months, no pagination
 }
 
@@ -42,29 +44,63 @@ function groupExpensesByMonth(expenses: ExpenseItem[]) {
 }
 
 
-const MonthlyExpenseTable: React.FC<MonthlyExpenseTableProps> = ({ expenses, limitMonths }) => {
+const MonthlyExpenseTable: React.FC<MonthlyExpenseTableProps> = ({ limitMonths }) => {
   const theme = useTheme();
   const [filterDate, setFilterDate] = React.useState<Date | undefined>(undefined);
   const [pickerOpen, setPickerOpen] = React.useState(false);
+  const [userId, setUserId] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setUserId(user.id);
+    });
+  }, []);
+
+  const [{ data, fetching }] = useQuery({
+    query: GET_EXPENSES,
+    variables: {
+      filter: { 
+        userId: { eq: userId },
+      },
+      orderBy: [{ date: "DescNullsLast" }],
+      first: 1000, // Fetch enough for history
+    },
+    pause: !userId,
+  });
+
+  const expenses: ExpenseItem[] = React.useMemo(() => {
+    return data?.expenseCollection?.edges?.map((e: any) => e.node) || [];
+  }, [data]);
 
   // Filter expenses by selected month
   const filteredExpenses = React.useMemo(() => {
     if (!filterDate) return expenses;
     const key = getMonthKey(filterDate);
-    return expenses.filter(e => e.date && e.date.startsWith(key));
+    return expenses.filter(e => e.date && format(new Date(e.date), 'yyyy-MM') === key);
   }, [expenses, filterDate]);
 
-  let monthly = groupExpensesByMonth(filteredExpenses);
-  // If limitMonths is set, only show last N months (no pagination)
-  if (limitMonths && monthly.length > limitMonths) {
-    monthly = monthly.slice(0, limitMonths);
-  }
+  const monthly = React.useMemo(() => {
+    let m = groupExpensesByMonth(filteredExpenses);
+     // If limitMonths is set, only show last N months (no pagination)
+    if (limitMonths && m.length > limitMonths) {
+      m = m.slice(0, limitMonths);
+    }
+    return m;
+  }, [filteredExpenses, limitMonths]);
 
   // Pagination for all months (if not limited)
   const [page, setPage] = React.useState(0);
   const itemsPerPage = 12;
   const paginatedMonthly = limitMonths ? monthly : monthly.slice(page * itemsPerPage, (page + 1) * itemsPerPage);
   const numberOfPages = limitMonths ? 1 : Math.ceil(monthly.length / itemsPerPage);
+
+  if (fetching && !expenses.length) {
+      return (
+          <View style={[styles.container, { backgroundColor: theme.colors.elevation.level2, padding: 20, alignItems: 'center' }]}>
+              <Text>Loading monthly stats...</Text>
+          </View>
+      );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.elevation.level2 }]}> 
@@ -84,12 +120,18 @@ const MonthlyExpenseTable: React.FC<MonthlyExpenseTableProps> = ({ expenses, lim
           <DataTable.Title style={{ flex: 1 }}>Month</DataTable.Title>
           <DataTable.Title style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>Total</DataTable.Title>
         </DataTable.Header>
-        {paginatedMonthly.map((item) => (
-          <DataTable.Row key={item.month}>
-            <DataTable.Cell style={{ flex: 1 }}>{item.month}</DataTable.Cell>
-            <DataTable.Cell style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>৳{item.total.toLocaleString()}</DataTable.Cell>
-          </DataTable.Row>
-        ))}
+        {paginatedMonthly.length === 0 ? (
+           <DataTable.Row>
+             <DataTable.Cell style={{ flex: 1 }}>No data</DataTable.Cell>
+           </DataTable.Row>
+        ) : (
+            paginatedMonthly.map((item) => (
+            <DataTable.Row key={item.month}>
+                <DataTable.Cell style={{ flex: 1 }}>{item.month}</DataTable.Cell>
+                <DataTable.Cell style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>৳{item.total.toLocaleString()}</DataTable.Cell>
+            </DataTable.Row>
+            ))
+        )}
         {!limitMonths && numberOfPages > 1 && (
           <DataTable.Pagination
             page={page}
@@ -115,7 +157,7 @@ const MonthlyExpenseTable: React.FC<MonthlyExpenseTableProps> = ({ expenses, lim
       <View style={[styles.footer, { borderTopColor: theme.colors.outlineVariant }]}> 
         <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>Total Expense: </Text>
         <Text variant="headlineSmall" style={[styles.totalAmount, { color: theme.colors.error }]}> 
-          ৳{paginatedMonthly.reduce((sum, item) => sum + item.total, 0).toLocaleString()}
+          ৳{monthly.reduce((sum, item) => sum + item.total, 0).toLocaleString()}
         </Text>
       </View>
     </View>

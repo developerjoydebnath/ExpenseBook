@@ -1,39 +1,82 @@
 import { gql } from 'urql';
 
 // Queries
+// Queries
 export const GET_EXPENSES = gql`
-  query GetExpenses($filter: ExpenseFilter, $orderBy: [ExpenseOrderBy!]) {
-    expenseCollection(filter: $filter, orderBy: $orderBy) {
+  query GetExpenses(
+    $filter: ExpenseFilter
+    $orderBy: [ExpenseOrderBy!]
+    $first: Int
+    $last: Int
+    $before: Cursor
+    $after: Cursor
+  ) {
+    expenseCollection(
+      filter: $filter
+      orderBy: $orderBy
+      first: $first
+      last: $last
+      before: $before
+      after: $after
+    ) {
       edges {
+        cursor
         node {
           id
           source
           amount
           date
         }
+      }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
       }
     }
   }
 `;
 
 export const GET_INCOMES = gql`
-  query GetIncomes($filter: IncomeFilter, $orderBy: [IncomeOrderBy!]) {
-    incomeCollection(filter: $filter, orderBy: $orderBy) {
+  query GetIncomes(
+    $filter: IncomeFilter
+    $orderBy: [IncomeOrderBy!]
+    $first: Int
+    $last: Int
+    $before: Cursor
+    $after: Cursor
+  ) {
+    incomeCollection(
+      filter: $filter
+      orderBy: $orderBy
+      first: $first
+      last: $last
+      before: $before
+      after: $after
+    ) {
       edges {
+        cursor
         node {
           id
           source
           amount
           date
         }
+      }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
       }
     }
   }
 `;
 
 export const GET_SUMMARY = gql`
-  query GetSummary($expenseFilter: ExpenseFilter, $incomeFilter: IncomeFilter) {
-    expenseCollection(filter: $expenseFilter) {
+  query GetSummary($expenseFilter: ExpenseFilter, $incomeFilter: IncomeFilter, $expenseOrderBy: [ExpenseOrderBy!], $incomeOrderBy: [IncomeOrderBy!], $first: Int) {
+    expenseCollection(filter: $expenseFilter, orderBy: $expenseOrderBy, first: $first) {
       edges {
         node {
           id
@@ -43,7 +86,7 @@ export const GET_SUMMARY = gql`
         }
       }
     }
-    incomeCollection(filter: $incomeFilter) {
+    incomeCollection(filter: $incomeFilter, orderBy: $incomeOrderBy, first: $first) {
       edges {
         node {
           id

@@ -1,5 +1,5 @@
 import { Calendar } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { DataTable, IconButton, Searchbar, Text, useTheme } from 'react-native-paper';
 
@@ -18,6 +18,13 @@ interface IncomeTableProps {
   hidePagination?: boolean;
   searchQuery: string;
   onSearchChange: (query: string) => void;
+  // Server-side pagination props
+  onNextPage?: () => void;
+  onPrevPage?: () => void;
+  hasNextPage?: boolean;
+  hasPrevPage?: boolean;
+  pageNumber?: number;
+  totalCount?: number;
 }
 
 export default function IncomeTable({ 
@@ -27,13 +34,21 @@ export default function IncomeTable({
   onDateFilter, 
   hidePagination,
   searchQuery,
-  onSearchChange
+  onSearchChange,
+  onNextPage,
+  onPrevPage,
+  hasNextPage,
+  hasPrevPage,
+  pageNumber = 1,
+  totalCount = 0
 }: IncomeTableProps) {
-  const [page, setPage] = useState(0);
-  const itemsPerPage = 10;
   const theme = useTheme();
 
-  const totalIncome = incomes.reduce((sum, item) => sum + item.amount, 0);
+  const filteredIncomes = incomes.filter(item => 
+    !searchQuery || item.source.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const totalIncome = filteredIncomes.reduce((sum, item) => sum + item.amount, 0);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.elevation.level2 }]}>
@@ -65,35 +80,49 @@ export default function IncomeTable({
             <DataTable.Title style={{ flex: 0.8, paddingHorizontal: 0 }} textStyle={{ color: theme.colors.onSurface, fontWeight: 'bold' }}>Action</DataTable.Title>
           </DataTable.Header>
 
-          {incomes.slice(page * itemsPerPage, (page + 1) * itemsPerPage).map((item) => (
-            <DataTable.Row key={item.id} style={{ paddingHorizontal: 0, borderBottomColor: theme.colors.outlineVariant }}>
-              <DataTable.Cell style={{ flex: 1, paddingHorizontal: 0 }} textStyle={{ color: theme.colors.onSurfaceVariant, fontSize: 11 }}>
-                {item.date ? (() => {
-                  const d = new Date(item.date);
-                  return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear().toString().slice(-2)}`;
-                })() : 'N/A'}
-              </DataTable.Cell>
-              <DataTable.Cell style={{ flex: 1.5, paddingHorizontal: 0 }} textStyle={{ color: theme.colors.onSurfaceVariant, fontSize: 12 }}>{item.source}</DataTable.Cell>
-              <DataTable.Cell style={{ flex: 1, paddingHorizontal: 0 }} textStyle={{ color: theme.colors.onSurfaceVariant }}>৳{item.amount}</DataTable.Cell>
-              <DataTable.Cell style={{ flex: 0.8, paddingHorizontal: 0 }}>
-                <View style={[styles.actions, { justifyContent: 'flex-start' }]}>
-                  <IconButton icon="pencil" size={14} iconColor={theme.colors.onSurfaceVariant} onPress={() => onEdit(item)} style={styles.actionButton} />
-                  <IconButton icon="delete" size={14} iconColor={theme.colors.error} onPress={() => onDelete(item.id)} style={styles.actionButton} />
-                </View>
-              </DataTable.Cell>
-            </DataTable.Row>
-          ))}
+          {filteredIncomes.length === 0 ? (
+             <DataTable.Row style={{paddingHorizontal: 0, borderBottomColor: theme.colors.outlineVariant}}>
+               <DataTable.Cell style={{ justifyContent: 'center' }}>No incomes found</DataTable.Cell>
+             </DataTable.Row>
+          ) : (
+            filteredIncomes.map((item) => (
+              <DataTable.Row key={item.id} style={{ paddingHorizontal: 0, borderBottomColor: theme.colors.outlineVariant }}>
+                <DataTable.Cell style={{ flex: 1, paddingHorizontal: 0 }} textStyle={{ color: theme.colors.onSurfaceVariant, fontSize: 11 }}>
+                  {item.date ? (() => {
+                    const d = new Date(item.date);
+                    return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear().toString().slice(-2)}`;
+                  })() : 'N/A'}
+                </DataTable.Cell>
+                <DataTable.Cell style={{ flex: 1.5, paddingHorizontal: 0 }} textStyle={{ color: theme.colors.onSurfaceVariant, fontSize: 12 }}>{item.source}</DataTable.Cell>
+                <DataTable.Cell style={{ flex: 1, paddingHorizontal: 0 }} textStyle={{ color: theme.colors.onSurfaceVariant }}>৳{item.amount}</DataTable.Cell>
+                <DataTable.Cell style={{ flex: 0.8, paddingHorizontal: 0 }}>
+                  <View style={[styles.actions, { justifyContent: 'flex-start' }]}>
+                    <IconButton icon="pencil" size={14} iconColor={theme.colors.onSurfaceVariant} onPress={() => onEdit(item)} style={styles.actionButton} />
+                    <IconButton icon="delete" size={14} iconColor={theme.colors.error} onPress={() => onDelete(item.id)} style={styles.actionButton} />
+                  </View>
+                </DataTable.Cell>
+              </DataTable.Row>
+            ))
+          )}
 
           {!hidePagination && (
-            <DataTable.Pagination
-              page={page}
-              numberOfPages={Math.ceil(incomes.length / itemsPerPage)}
-              onPageChange={(page) => setPage(page)}
-              label={`${page * itemsPerPage + 1}-${Math.min((page + 1) * itemsPerPage, incomes.length)} of ${incomes.length}`}
-              showFastPaginationControls
-              numberOfItemsPerPage={itemsPerPage}
-              theme={{ colors: { text: theme.colors.onSurface, onSurface: theme.colors.onSurface } }}
-            />
+             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', padding: 8 }}>
+                 <Text variant="labelSmall" style={{ marginRight: 10 }}>
+                   Page {pageNumber} {totalCount > 0 ? `(${totalCount} items)` : ''}
+                 </Text>
+                 <IconButton 
+                    icon="chevron-left" 
+                    size={20} 
+                    onPress={onPrevPage} 
+                    disabled={!hasPrevPage} 
+                 />
+                 <IconButton 
+                    icon="chevron-right" 
+                    size={20} 
+                    onPress={onNextPage} 
+                    disabled={!hasNextPage} 
+                 />
+             </View>
           )}
         </DataTable>
       </View>

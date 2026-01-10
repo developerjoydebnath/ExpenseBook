@@ -462,7 +462,7 @@ allExpenses.forEach((e: any) => {
         onDelete={handleDeleteExpense}
         onDateFilter={handleExpenseDateFilter}
         selectedDate={expenseFilterDate || new Date()}
-        hidePagination={false}
+        hidePagination={true}
         searchQuery={expenseSearchQuery}
         onSearchChange={setExpenseSearchQuery}
       />
@@ -486,7 +486,7 @@ allExpenses.forEach((e: any) => {
         onEdit={showIncomeEditModal}
         onDelete={handleDeleteIncome}
         onDateFilter={handleIncomeDateFilter}
-        hidePagination={incomeFilterDate || incomeSearchQuery ? false : true}
+        hidePagination={true}
         searchQuery={incomeSearchQuery}
         onSearchChange={setIncomeSearchQuery}
       />

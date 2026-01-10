@@ -6,18 +6,18 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Button, Modal, Portal, Text, useTheme } from 'react-native-paper';
 import { useMutation, useQuery } from 'urql';
-import ExpenseTable from '../../components/dashboard/ExpenseTable';
-import IncomeTable from '../../components/dashboard/IncomeTable';
-import SummaryStats from '../../components/dashboard/SummaryStats';
-import AddExpenseForm from '../../components/forms/AddExpenseForm';
-import AddMoneyForm from '../../components/forms/AddMoneyForm';
-import ConfirmDialog from '../../components/shared/ConfirmDialog';
-import MonthYearPicker from '../../components/shared/MonthYearPicker';
-import { useToast } from '../../components/shared/ToastProvider';
-import { ADD_EXPENSE, ADD_INCOME, DELETE_EXPENSE, DELETE_INCOME, EDIT_EXPENSE, EDIT_INCOME, GET_SUMMARY } from '../../services/queries';
+import ExpenseTable from '../components/dashboard/ExpenseTable';
+import IncomeTable from '../components/dashboard/IncomeTable';
+import SummaryStats from '../components/dashboard/SummaryStats';
+import AddExpenseForm from '../components/forms/AddExpenseForm';
+import AddMoneyForm from '../components/forms/AddMoneyForm';
+import ConfirmDialog from '../components/shared/ConfirmDialog';
+import MonthYearPicker from '../components/shared/MonthYearPicker';
+import { useToast } from '../components/shared/ToastProvider';
+import { ADD_EXPENSE, ADD_INCOME, DELETE_EXPENSE, DELETE_INCOME, EDIT_EXPENSE, EDIT_INCOME, GET_SUMMARY } from '../services/queries';
 
 
-import { supabase } from '../../services/supabase';
+import { supabase } from '../services/supabase';
 
 export default function DashboardScreen() {
   const [userId, setUserId] = useState<string | null>(null);
@@ -55,6 +55,9 @@ export default function DashboardScreen() {
     variables: {
       expenseFilter: userId ? { userId: { eq: userId } } : {},
       incomeFilter: userId ? { userId: { eq: userId } } : {},
+      expenseOrderBy: [{ date: 'DescNullsLast' }],
+      incomeOrderBy: [{ date: 'DescNullsLast' }],
+      first: 1000,
     },
     requestPolicy: 'cache-and-network',
     pause: !userId,
@@ -262,17 +265,18 @@ export default function DashboardScreen() {
     const totalIncome = allIncomes.reduce((sum: number, i: any) => sum + (i.amount || 0), 0);
     const totalExpense = allExpenses.reduce((sum: number, e: any) => sum + (e.amount || 0), 0);
 
-    const todayStr = format(new Date(), 'yyyy-MM-dd');
-    const thisMonthStr = format(new Date(), 'yyyy-MM');
+    const now = new Date();
+    const todayStr = format(now, 'yyyy-MM-dd');
+    const thisMonthStr = format(now, 'yyyy-MM');
 
     // Filter expenses independently
     let filteredExpenses = allExpenses;
     if (expenseFilterDate) {
       const targetDate = format(expenseFilterDate, 'yyyy-MM-dd');
-      filteredExpenses = allExpenses.filter((e: any) => e.date && e.date.startsWith(targetDate));
+      filteredExpenses = allExpenses.filter((e: any) => e.date && format(new Date(e.date), 'yyyy-MM-dd') === targetDate);
     } else if (!expenseSearchQuery) {
       // Default: show today's expenses on the dashboard table ONLY IF NOT SEARCHING
-      filteredExpenses = allExpenses.filter((e: any) => e.date && e.date.startsWith(todayStr));
+      filteredExpenses = allExpenses.filter((e: any) => e.date && format(new Date(e.date), 'yyyy-MM-dd') === todayStr);
     }
 
     if (expenseSearchQuery) {
@@ -285,7 +289,7 @@ export default function DashboardScreen() {
     let filteredIncomes = allIncomes;
     if (incomeFilterDate) {
       const targetMonth = format(incomeFilterDate, 'yyyy-MM');
-      filteredIncomes = allIncomes.filter((i: any) => i.date && i.date.startsWith(targetMonth));
+      filteredIncomes = allIncomes.filter((i: any) => i.date && format(new Date(i.date), 'yyyy-MM') === targetMonth);
     } else if (!incomeSearchQuery) {
       // Default: show recent incomes ONLY IF NOT SEARCHING
       filteredIncomes = allIncomes.slice(0, 5);
@@ -298,11 +302,11 @@ export default function DashboardScreen() {
     }
 
     const todayExpense = allExpenses
-      .filter((e: any) => e.date && e.date.startsWith(todayStr))
+      .filter((e: any) => e.date && format(new Date(e.date), 'yyyy-MM-dd') === todayStr)
       .reduce((sum: number, e: any) => sum + (e.amount || 0), 0);
 
     const thisMonthExpense = allExpenses
-      .filter((e: any) => e.date && e.date.startsWith(thisMonthStr))
+      .filter((e: any) => e.date && format(new Date(e.date), 'yyyy-MM') === thisMonthStr)
       .reduce((sum: number, e: any) => sum + (e.amount || 0), 0);
 
     // Graph data (always last 7 days or whatever logic you prefer)

@@ -1,4 +1,5 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { format } from 'date-fns';
 import React from 'react';
 import { Platform, View } from 'react-native';
 import { TextInput, useTheme } from 'react-native-paper';
@@ -17,7 +18,7 @@ const DateField: React.FC<DateFieldProps> = ({ value, onChange, label }) => {
     <View style={{ marginBottom: 12 }}>
       <TextInput
         label={label || 'Date'}
-        value={value.toISOString().slice(0, 10)}
+        value={format(value, 'yyyy-MM-dd')}
         mode="outlined"
         editable={false}
         right={<TextInput.Icon icon="calendar" onPress={() => setPickerOpen(true)} />}

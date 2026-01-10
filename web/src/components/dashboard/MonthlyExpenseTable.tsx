@@ -131,7 +131,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { MonthYearPicker } from "../shared/MonthYearPicker";
 
 export function MonthlyExpenseTable({ refreshTrigger }: { refreshTrigger?: number }) {
-  const { expenses, isLoading, mutate } = useExpenses(undefined, 1000, [{ date: "DescNullsFirst" }]);
+  const { expenses, isLoading, mutate } = useExpenses(undefined, 1000, null, null, [{ date: "DescNullsFirst" }]);
   const [selectedMonth, setSelectedMonth] = useState<string | undefined>("all");
   
   const prevRefreshTrigger = useRef(refreshTrigger);

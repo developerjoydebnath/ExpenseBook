@@ -88,7 +88,7 @@ import { useEffect, useRef } from "react";
 import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 export function ExpenseGraph({ refreshTrigger }: { refreshTrigger?: number }) {
-  const { expenses, isLoading, mutate } = useExpenses();
+  const { expenses, isLoading, mutate } = useExpenses(undefined, 1000, null, null, undefined);
   const prevRefreshTrigger = useRef(refreshTrigger);
   const hasMounted = useRef(false);
 

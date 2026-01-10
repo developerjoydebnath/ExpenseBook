@@ -57,7 +57,13 @@ import { ADD_INCOME, DELETE_INCOME, EDIT_INCOME, GET_INCOMES } from "../lib/quer
 import { supabase } from "../lib/supabase";
 import { Income } from "../lib/types";
 
-export function useIncomes(dateFilter?: string, limit?: number, orderBy?: Record<string, string>[]) {
+export function useIncomes(
+  dateFilter?: string, 
+  limit: number = 10,
+  after?: string | null,
+  before?: string | null,
+  orderBy?: Record<string, string>[],
+) {
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -71,29 +77,37 @@ export function useIncomes(dateFilter?: string, limit?: number, orderBy?: Record
     variables: {
       filter: {
         userId: { eq: userId },
-        ...(dateFilter ? { date: { eq: dateFilter } } : {})
+        ...(dateFilter ? { 
+          date: { 
+            gte: `${dateFilter}T00:00:00`,
+            lte: `${dateFilter}T23:59:59.999`
+          } 
+        } : {})
       },
-      orderBy,
-      first: limit
+      orderBy: orderBy || [{ date: "DescNullsLast" }],
+      first: before ? undefined : limit,
+      last: before ? limit : undefined,
+      after: after || undefined,
+      before: before || undefined,
     },
     pause: !userId,
-    // CRITICAL: Add requestPolicy to ensure fresh data
     requestPolicy: 'cache-and-network',
   });
 
-  // Enhanced mutate function
   const mutate = () => {
     return reexecute({
-      requestPolicy: 'network-only', // Force network request
+      requestPolicy: 'network-only',
     });
   };
 
   return { 
     incomes: data?.incomeCollection?.edges.map((e: { node: Income }) => e.node) || [], 
+    pageInfo: data?.incomeCollection?.pageInfo || { hasNextPage: false, hasPreviousPage: false, startCursor: null, endCursor: null },
+    totalCount: data?.incomeCollection?.edges?.length || 0,
     error, 
     isLoading: fetching, 
     mutate,
-    rawData: data // For debugging
+    rawData: data
   };
 }
 

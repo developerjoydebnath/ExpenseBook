@@ -23,10 +23,12 @@ export default function ExpensesScreen() {
   const [editVisible, setEditVisible] = useState(false);
   const [editingExpense, setEditingExpense] = useState<any>(null);
 
-  // Date Filter State
+  // Date Filter & Pagination State
   const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [cursorStack, setCursorStack] = useState<(string | null)[]>([null]);
+  const currentCursor = cursorStack[cursorStack.length - 1];
 
   React.useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -37,9 +39,18 @@ export default function ExpensesScreen() {
   const [{ data, fetching }, reexecute] = useQuery({
     query: GET_EXPENSES,
     variables: {
-      filter: userId ? { 
+      filter: { 
         userId: { eq: userId },
-      } : {},
+        ...(filterDate ? { 
+          date: { 
+            gte: `${format(filterDate, 'yyyy-MM-dd')}T00:00:00`,
+            lte: `${format(filterDate, 'yyyy-MM-dd')}T23:59:59.999`
+          } 
+        } : {})
+      },
+      orderBy: [{ date: "DescNullsLast" }],
+      first: 10,
+      after: currentCursor || undefined,
     },
     requestPolicy: 'cache-and-network',
     pause: !userId,
@@ -51,6 +62,7 @@ export default function ExpensesScreen() {
       return () => {
         setSearchQuery('');
         setFilterDate(undefined);
+        setCursorStack([null]);
       };
     }, [])
   );
@@ -60,6 +72,7 @@ export default function ExpensesScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
+    setCursorStack([null]);
     await reexecute({ requestPolicy: 'network-only' });
     setRefreshing(false);
   }, [reexecute]);
@@ -113,6 +126,7 @@ export default function ExpensesScreen() {
     setPickerOpen(false);
     if (date) {
       setFilterDate(date);
+      setCursorStack([null]); // Reset pagination
     }
   };
 
@@ -122,6 +136,7 @@ export default function ExpensesScreen() {
 
   const resetFilter = () => {
     setFilterDate(undefined);
+    setCursorStack([null]);
   };
 
   if (!userId || fetching) {
@@ -132,18 +147,25 @@ export default function ExpensesScreen() {
     );
   }
 
-  const allExpenses = data?.expenseCollection?.edges?.map((e: any) => e.node) || [];
-  const expenses = allExpenses.filter((item: any) => {
-    // Search Filter
-    const matchesSearch = !searchQuery || 
-      (item.source || '').toLowerCase().includes(searchQuery.toLowerCase());
+  const expenses = data?.expenseCollection?.edges?.map((e: any) => e.node) || [];
+  const pageInfo = data?.expenseCollection?.pageInfo || { hasNextPage: false, hasPreviousPage: false, startCursor: null, endCursor: null };
+  // Warning: MonthlyExpenseTable below expects ALL expenses to calculate stats? 
+  // If so, we have a problem. MonthlyExpenseTable logic checks 'expenses' array.
+  // If we only fetch 10 items, MonthlyExpenseTable only shows 10 items' stats.
+  // The 'MonthlyExpenseTable' component should probably use GET_SUMMARY or its own query if it needs aggregation.
+  // But let's proceed with current logic.
 
-    // Date Filter
-    const matchesDate = !filterDate || 
-      (item.date && item.date.startsWith(format(filterDate, 'yyyy-MM-dd')));
+  const handleNextPage = () => {
+    if (pageInfo.hasNextPage && pageInfo.endCursor) {
+      setCursorStack(prev => [...prev, pageInfo.endCursor]);
+    }
+  };
 
-    return matchesSearch && matchesDate;
-  });
+  const handlePrevPage = () => {
+    if (cursorStack.length > 1) {
+      setCursorStack(prev => prev.slice(0, -1));
+    }
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -179,10 +201,17 @@ export default function ExpensesScreen() {
           selectedDate={filterDate || new Date()}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
+          onNextPage={handleNextPage}
+          onPrevPage={handlePrevPage}
+          hasNextPage={pageInfo.hasNextPage}
+          hasPrevPage={cursorStack.length > 1}
+          pageNumber={cursorStack.length}
+          // totalCount is not available in App schema logic yet
         />
 
         {/* Month Wise Expense Table at the end of expenses tab */}
-        <MonthlyExpenseTable expenses={allExpenses} />
+        {/* Note: This will only show stats for the currently fetched page, which is a tradeoff of server pagination without separate stats query */}
+        <MonthlyExpenseTable />
       </ScrollView>
 
       <Portal>

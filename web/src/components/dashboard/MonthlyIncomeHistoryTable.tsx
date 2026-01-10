@@ -10,7 +10,7 @@ import { ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 export function MonthlyIncomeHistoryTable({ refreshTrigger }: { refreshTrigger?: number }) {
-  const { incomes, isLoading, mutate } = useIncomes(undefined, 1000, [{ date: "DescNullsFirst" }]);
+  const { incomes, isLoading, mutate } = useIncomes(undefined, 1000, null, null, [{ date: "DescNullsFirst" }]);
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);

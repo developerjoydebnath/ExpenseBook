@@ -26,7 +26,7 @@ eas build:configure
 
 ### 3. Configure `eas.json` for APK
 By default, EAS builds an `.aab` (Android App Bundle) which is for the Play Store. To get an `.apk` for direct installation, you need to update your `eas.json` file.
-
+npx expo-optimize
 Add or modify the `preview` or `production` profile in `eas.json`:
 ```json
 {
@@ -56,3 +56,9 @@ eas build --platform android --profile preview
 
 > [!TIP]
 > You can also run `eas build:list` at any time to see your previous builds and get download links!
+
+| Task                     | Command                                             |
+| ------------------------ | --------------------------------------------------- |
+| Optimize images          | `npx expo-optimize`                                 |
+| Build Android preview    | `eas build --platform android --profile preview`    |
+| Build Android production | `eas build --platform android --profile production` |

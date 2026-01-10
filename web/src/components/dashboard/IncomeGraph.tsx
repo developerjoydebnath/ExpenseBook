@@ -91,7 +91,7 @@ import { useEffect, useRef } from "react";
 import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 export function IncomeGraph({ refreshTrigger }: { refreshTrigger?: number }) {
-  const { incomes, isLoading, mutate } = useIncomes();
+  const { incomes, isLoading, mutate } = useIncomes(undefined, 1000);
   const prevRefreshTrigger = useRef(refreshTrigger);
   const hasMounted = useRef(false);
 

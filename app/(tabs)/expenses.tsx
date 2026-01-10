@@ -5,12 +5,12 @@ import { supabase } from '@/services/supabase';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
 import { format } from 'date-fns';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Button, Modal, Portal, Text, useTheme } from 'react-native-paper';
 import { useMutation, useQuery } from 'urql';
-import ConfirmDialog from '../../components/shared/ConfirmDialog';
-import { useToast } from '../../components/shared/ToastProvider';
+import ConfirmDialog from '../components/shared/ConfirmDialog';
+import { useToast } from '../components/shared/ToastProvider';
 
 export default function ExpensesScreen() {
   const theme = useTheme();
@@ -39,10 +39,24 @@ export default function ExpensesScreen() {
       filter: userId ? { 
         userId: { eq: userId },
       } : {},
+      orderBy: [{ date: 'DescNullsLast' }],
+      first: 1000,
     },
     requestPolicy: 'cache-and-network',
     pause: !userId,
   });
+
+useEffect(() => {
+  if (data) {
+    console.warn(
+      'GRAPHQL RAW RESPONSE:',
+      JSON.stringify(data, null, 2)
+    );
+  }
+}, [data]);
+
+
+
 
   // Reset states on navigation focus
   useFocusEffect(
@@ -139,7 +153,7 @@ export default function ExpensesScreen() {
 
     // Date Filter
     const matchesDate = !filterDate || 
-      (item.date && item.date.startsWith(format(filterDate, 'yyyy-MM-dd')));
+      (item.date && format(new Date(item.date), 'yyyy-MM-dd') === format(filterDate, 'yyyy-MM-dd'));
 
     return matchesSearch && matchesDate;
   });

@@ -1,10 +1,63 @@
 import { gql } from 'urql';
 
 // Queries
-export const GET_EXPENSES = gql`
-  query GetExpenses($filter: ExpenseFilter, $orderBy: [ExpenseOrderBy!]) {
-    expenseCollection(filter: $filter, orderBy: $orderBy) {
+export const GET_EXPENSES = `
+  query GetExpenses(
+    $filter: ExpenseFilter
+    $orderBy: [ExpenseOrderBy!]
+    $first: Int
+    $last: Int
+    $before: Cursor
+    $after: Cursor
+  ) {
+    expenseCollection(
+      filter: $filter
+      orderBy: $orderBy
+      first: $first
+      last: $last
+      before: $before
+      after: $after
+    ) {
       edges {
+        cursor
+        node {
+          id
+          source
+          amount
+          date
+          userId
+        }
+      }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
+      }
+    }
+  }
+`;
+
+
+export const GET_INCOMES = gql`
+  query GetIncomes(
+    $filter: IncomeFilter
+    $orderBy: [IncomeOrderBy!]
+    $first: Int
+    $last: Int
+    $before: Cursor
+    $after: Cursor
+  ) {
+    incomeCollection(
+      filter: $filter
+      orderBy: $orderBy
+      first: $first
+      last: $last
+      before: $before
+      after: $after
+    ) {
+      edges {
+        cursor
         node {
           id
           source
@@ -12,20 +65,11 @@ export const GET_EXPENSES = gql`
           date
         }
       }
-    }
-  }
-`;
-
-export const GET_INCOMES = gql`
-  query GetIncomes($filter: IncomeFilter, $orderBy: [IncomeOrderBy!]) {
-    incomeCollection(filter: $filter, orderBy: $orderBy) {
-      edges {
-        node {
-          id
-          source
-          amount
-          date
-        }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
       }
     }
   }
